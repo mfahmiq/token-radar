@@ -130,6 +130,60 @@
     else window.history.replaceState(null, '', window.location.pathname + window.location.search);
   }
 
+  /** The filtered board as a CSV download: the same rows the table shows, in the same order. */
+  function exportCsv() {
+    var list = sortedRows(rows());
+    var head = ['rank', 'name', 'category', 'chains', 'tvl_usd', 'change_7d', 'age_days', 'implied_value_usd', 'category_multiple'];
+    function cell(v) {
+      var s = v === null || v === undefined ? '' : String(v);
+      return s.indexOf(',') >= 0 || s.indexOf('"') >= 0 || s.indexOf('\n') >= 0 ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }
+    var lines = [head.join(',')];
+    list.forEach(function (r) {
+      lines.push([r.rank, r.name, r.category || '', (r.chains || []).join(';'), r.tvl_usd, r.change_7d === null ? '' : r.change_7d, r.age_days === null ? '' : r.age_days, r.implied_value_usd, r.category_multiple === null || r.category_multiple === undefined ? '' : r.category_multiple].map(cell).join(','));
+    });
+    var blob = new Blob([lines.join('\n') + '\n'], { type: 'text/csv' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'token-radar-board.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  }
+
+  /** The current view as a link: the hash carries the search, the filters and the open row. */
+  function copyViewLink() {
+    writeHash();
+    var url = window.location.href;
+    function done(ok) {
+      var note = document.getElementById('copy-note');
+      if (note) note.textContent = ok ? 'Link copied.' : 'Copy the address bar instead.';
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () { done(true); }, function () { done(false); });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = url;
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      done(ok);
+    }
+  }
+
+  /** Keyboard shortcuts, only when the reader is not typing in a field: e exports the
+   * filtered board as CSV, c copies the current view's link. Both are listed in the footer. */
+  function onKey(e) {
+    var tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'e' || e.key === 'E') { e.preventDefault(); exportCsv(); }
+    if (e.key === 'c' || e.key === 'C') { e.preventDefault(); copyViewLink(); }
+  }
+
   function rows() {
     var q = state.q.trim().toLowerCase();
     return DATA.rows.filter(function (r) {
@@ -380,6 +434,14 @@
     }
   }
 
+  function footer() {
+    return el('footer', { class: 'foot' },
+      el('p', { class: 'sub', text: 'Shortcuts: press E to download the filtered board as CSV, C to copy a link to this view. The link carries the search, the filters and the open row.' }),
+      el('span', { id: 'copy-note', class: 'sub', 'aria-live': 'polite' }),
+      el('p', { class: 'sub', text: 'Implied value is a model, not a promise: it scores a protocol from the snapshot, and never predicts whether or when a token is issued. Snapshot ' + DATA.as_of + ' from the DefiLlama protocol index.' })
+    );
+  }
+
   function render() {
     app.textContent = '';
     var shell = el('div', { class: 'shell' });
@@ -388,6 +450,7 @@
     shell.appendChild(controls());
     shell.appendChild(state.tab === 'pre-token' ? boardTable() : liveTable());
     if (state.tab === 'pre-token') shell.appendChild(modelPanel());
+    shell.appendChild(footer());
     app.appendChild(shell);
     app.setAttribute('aria-busy', 'false');
     if (!dialog.isConnected) app.appendChild(dialog);
@@ -399,4 +462,5 @@
   window.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && dialog.open) dialog.close();
   });
+  window.addEventListener('keydown', onKey);
 })();

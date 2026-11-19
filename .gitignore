@@ -1,1 +1,6 @@
+# Build output: main.ts writes board.json, data.js, dashboard/ and screenshots/ here,
+# and the dossier is rebuilt from it. Never committed; the gate reads the repository.
 out/
+
+# Local test output from running the entry by hand (MAKEFUN_OUTPUT_DIR=test-out).
+test-out/

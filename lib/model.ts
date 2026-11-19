@@ -557,3 +557,31 @@ export function boardIssue(board: BoardRow[], snapshot: Snapshot): string | null
 export function dataScript(radar: RadarData): string {
   return `window.RADAR=${JSON.stringify(radar)};\n`;
 }
+
+/**
+ * A one-page human check of what was scored: the top five rows with their implied values
+ * and category multiples, then every category's multiple with its comparable count, so a
+ * reader can see at a glance whether the model is behaving or whether one category's
+ * multiple is doing all the work. Pure: it reads the board and the radar, and changes
+ * neither. Printed by main.ts under --summary; never part of board.json.
+ */
+export function summarizeRadar(board: BoardRow[], radar: RadarData, snapshot: Snapshot): string {
+  const usd = (n: number): string => {
+    if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
+    if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
+    if (n >= 1e3) return `$${Math.round(n / 1e3)}K`;
+    return `$${Math.round(n)}`;
+  };
+  const lines: string[] = [];
+  lines.push(`token radar summary: ${board.length} rows from ${snapshot.protocols.length} protocols (watchlist ${snapshot.watchlist.length}, early ${radar.early_size}, live set aside ${radar.live_size}); global multiple x${radar.multiples.global.toFixed(3)}`);
+  lines.push('top five by implied value:');
+  for (const r of board.slice(0, 5)) {
+    lines.push(`  #${r.rank} ${r.name} (${r.category ?? 'Other'}): ${usd(r.implied_value_usd)} on ${usd(r.tvl_usd)} TVL at x${r.model.category_multiple.toFixed(3)}`);
+  }
+  const cats = Object.entries(radar.multiples.by_category).sort((a, b) => b[1].multiple - a[1].multiple);
+  lines.push('category multiples (median market-cap-per-TVL of live comparables, shrunk toward the global median):');
+  for (const [name, entry] of cats) {
+    lines.push(`  ${name}: x${entry.multiple.toFixed(3)} from ${entry.comparables} comparable${entry.comparables === 1 ? '' : 's'}`);
+  }
+  return lines.join('\n');
+}

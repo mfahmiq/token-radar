@@ -1,5 +1,8 @@
 /* Token Radar's dark theme. A radar console: near-black green canvas, one emerald accent,
-   mono numbers, hairline panels. The palette, two radii and two families are the whole style. */
+   mono numbers, hairline panels. The palette, two radii and two families are the whole style.
+   The footer at the bottom carries the keyboard hints (E exports the filtered board as CSV,
+   C copies the current view's link); it sits below the fold, so the board is the first thing
+   a reader sees. */
 :root {
   --canvas: #0a100d;
   --surface: #101915;
@@ -152,6 +155,22 @@ tbody tr[data-selected="true"] { background: rgba(46, 230, 168, 0.08); box-shado
 .steps li::marker { color: var(--accent); font-family: var(--font-num); }
 .steps b { display: block; font-weight: 500; }
 .cost { color: var(--muted); font-size: 12px; font-family: var(--font-num); }
+
+/* The footer: keyboard hints and the model's own caveat, below the fold so the board stays
+   the first thing a reader sees. The copy note is the live region the C shortcut writes to. */
+.foot {
+  margin-top: var(--step-7); padding-top: var(--step-5); border-top: 1px solid var(--border);
+  display: grid; gap: var(--step-2); color: var(--muted);
+}
+.foot p { max-width: 78ch; }
+#copy-note { color: var(--accent); min-height: 1.35em; }
+
+/* Without JavaScript there is no board: the note points at board.json instead. */
+.noscript {
+  max-width: 1320px; margin: var(--step-5) auto; padding: var(--step-4) var(--step-6);
+  color: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-panel);
+  background: var(--surface);
+}
 
 @media (max-width: 900px) {
   .shell { padding: var(--step-4); }
