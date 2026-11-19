@@ -29,12 +29,26 @@ Every row also carries a concrete 6-step farm plan (what to do, what it costs, h
 ```sh
 # Build the board + dashboard from the sealed snapshot:
 mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts --input <snapshot.json>
+# Add a one-line summary (top five rows and the category multiples):
+MAKEFUN_OUTPUT_DIR=out node main.ts --input <snapshot.json> --summary
 # Serve the dashboard (it reads data.js, no network):
-node serve.ts
-# open http://localhost:8080
+python3 -m http.server 8080 --directory out
+# open http://localhost:8080/dashboard/
 ```
 
-`main.ts` (Node 22, standard library only) reads `/input/snapshot.json`, writes the ranked board to `/output/board.json`, the dashboard's data to `/output/data.js`, copies `dashboard/` and `screenshots/` to `/output`, and writes `/output/dossier.json` with the vendored make.fun library.
+`main.ts` (Node 22, standard library only) reads `/input/snapshot.json`, writes the ranked board to `/output/board.json`, the dashboard's data to `/output/data.js`, copies `dashboard/` and `screenshots/` to `/output`, and writes `/output/dossier.json` with the vendored make.fun library. Before it writes anything it validates the board against the gate's own shape (ranks 1..N, implied values non-increasing, all 40 watchlist slugs present, every farm plan 3 to 12 steps of 20 to 600 characters) and refuses a board that fails.
+
+## What the dashboard shows
+
+- **The board**: 200 pre-token rows, strongest implied value first, with TVL, seven-day growth, age and a bar for each row's share of the leader. Click a row (or press Enter on it) for its detail drawer.
+- **Filters**: search by name, category or chain; a category and a chain dropdown; and a Pre-token / Live-token tab. The live tab shows the 24 protocols that already trade, at the market's own values.
+- **The model panel**: the formula in full, the explanation, and a table of every category's multiple with its comparable count — so a reader can see which multiples rest on many protocols and which on one.
+- **The detail drawer**: the row's implied-value equation with the model's own inputs, the comparable count its multiple rests on, the page's recomputation of the row beside the board's number (the two agree, or the drawer says the data would be stale), and the six-step farm plan with each step's cost and time.
+- **Shortcuts**: press **E** to download the filtered board as CSV, **C** to copy a link to the current view (the link carries the search, the filters and the open row). Both are listed in the footer, below the board.
+
+## How to read the board
+
+Start with the multiple, not the number. A row whose category multiple rests on 15 live comparables (Lending, ×0.151) is a thick estimate; a row whose multiple rests on one (Risk Curators, ×0.928) is thin — the dashboard says so on the row. The top of the board is dominated by Risk Curators because one live comparable set a high multiple; that is the model following the snapshot, not a judgement about the protocols. And implied value is an estimate, never a price: it does not predict whether or when a token is issued.
 
 ## The board
 

@@ -1,6 +1,21 @@
-// Token Radar's plain dashboard. It reads window.RADAR (written beside dashboard/ by main.ts) and
-// renders the ranked board, a filterable table, a per-protocol detail drawer with the model's own
-// inputs and the protocol's farm plan. No network: every byte it shows is in data.js.
+// Token Radar's plain dashboard. It reads window.RADAR (written beside dashboard/ by
+// main.ts) and renders the ranked board, a filterable table, a per-protocol detail drawer
+// with the model's own inputs and the protocol's farm plan. No network: every byte it
+// shows is in data.js, and every number it computes it recomputes from the snapshot
+// figures, so the page's code and the board's data are visibly the same arithmetic.
+//
+// How this file is laid out, top to bottom:
+//   formatting (fmtUsd, fmtPct, fmtAge) — how numbers become text;
+//   the model (impliedOf) — the one function that scores a row, radar-2;
+//   the farm plan (chainOf, capitalFor, holdDaysFor, actionFor, stepText, farmSteps) —
+//     the same derivation main.ts writes to board.json, rebuilt here for the detail view;
+//   state and the address bar (readHash, writeHash) — the search, the filters and the
+//     open row, so a view is a link;
+//   the views (header, lede, controls, boardTable, liveTable, modelPanel, footer) —
+//     the pieces render() assembles;
+//   the detail drawer (openDetail) and render() itself.
+// Keyboard shortcuts live in onKey: E downloads the filtered board as CSV, C copies a
+// link to the current view. Both are listed in the footer.
 (function () {
   'use strict';
 
@@ -9,6 +24,11 @@
   var app = document.getElementById('board');
   var state = { q: '', category: 'all', chain: 'all', tab: 'pre-token', sort: 'implied', dir: -1, selected: null };
 
+  // Money, percentages and ages, all in one place so the table, the detail drawer and
+  // the model panel agree on how a number looks. fmtUsd shortens to B, M and K above
+  // the thousands so a $2.02B implied value fits a narrow column; fmtPct always shows
+  // a sign; fmtAge turns days into years past a year and says "unknown" when the
+  // snapshot never listed the protocol.
   var usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
   function fmtUsd(n) {
     if (n === null || n === undefined || !isFinite(n)) return 'n/a';
@@ -26,10 +46,17 @@
     if (days >= 365) return (days / 365).toFixed(1) + 'y';
     return Math.max(0, Math.round(days)) + 'd';
   }
-  // The model in one function: the page recomputes a row from the snapshot figures and checks the
-  // number board.json carries, so the page's code and the board's data are visibly the same arithmetic.
-  // radar-2: the base is TVL times the row's own category multiple (the median market-cap-per-TVL of
-  // the live-token protocols in its category, shrunk toward the global median), not a flat constant.
+  // The model in one function: the page recomputes a row from the snapshot figures and
+  // checks the number board.json carries, so the page's code and the board's data are
+  // visibly the same arithmetic. radar-2: the base is TVL times the row's own category
+  // multiple (the median market-cap-per-TVL of the live-token protocols in its category,
+  // shrunk toward the global median), not a flat constant. Growth is the seven-day change
+  // clamped to the model's floor and cap, then weighted; maturity is the floor plus the
+  // age's share of the model's window, so a protocol that has run longer with no token
+  // scores higher. An unknown age takes the model's unknown-age default, and a row with
+  // no category multiple takes the base multiple. The result is floored at 1 and rounded,
+  // exactly as lib/model.ts does it — if this function and the model ever disagree, the
+  // detail view says so on the row.
   function impliedOf(row, model) {
     var growth = Math.min(model.growth_cap, Math.max(model.growth_floor, row.change_7d === null || row.change_7d === undefined ? 0 : row.change_7d));
     var growthMult = 1 + (growth / 100) * model.growth_weight;
@@ -39,6 +66,13 @@
     return Math.max(1, Math.round(row.tvl_usd * multiple * growthMult * maturity));
   }
 
+  // A tiny element builder, so the views read as the structure they build instead of a
+  // string of HTML. el('div', { class: 'stat' }, child1, child2) makes a div with that
+  // class and those children. Attributes are a plain object: 'class' sets the class,
+  // 'text' sets the text, 'html' sets inner HTML (only ever our own strings), 'onX'
+  // attaches an event listener for X, and anything else becomes an attribute. Children
+  // may be strings, nodes, null (skipped) or arrays of those. Nothing here touches the
+  // network or the DOM outside the board.
   function el(tag, attrs) {
     var node = document.createElement(tag);
     if (attrs) {
@@ -60,8 +94,18 @@
     return node;
   }
 
-  // The farm plan is the same derivation main.ts writes to board.json: category, chains, TVL and age
-  // decide the action, the capital, the hold and every cost and time. No name is special-cased.
+  // The farm plan is the same derivation main.ts writes to board.json: category, chains,
+  // TVL and age decide the action, the capital, the hold and every cost and time. No name
+  // is special-cased. The plan is six steps, always in the same order: a fresh wallet
+  // that holds only the funds to farm; the protocol's own action (supply, provide
+  // liquidity, bridge, stake, deposit — chosen by its category, with the capital sized
+  // by TVL: $50 under $100M, $100 under $1B, $150 under $5B, $250 above); one qualifying
+  // action a week; a hold of 30 to 60 days by age, so the activity is counted in more
+  // than one snapshot; a claim only from the protocol's own published link, never a paid
+  // claim; and a farm log, so the position can be repeated or unwound. Each step names
+  // its cost and its time, and stepText keeps every step within 20 to 600 characters.
+  // The detail view rebuilds this plan from the row, and the board carries the same six
+  // steps from lib/model.ts — the two agree because they are the same rules.
   function chainOf(p) { return p.chains && p.chains.length > 0 ? p.chains[0] : 'its main chain'; }
   function capitalFor(p) {
     if (p.tvl_usd >= 5e9) return 250;
@@ -110,6 +154,11 @@
     ].map(stepText);
   }
 
+  // The address bar is the view's address: the search, the category, the chain and the
+  // open row are kept in the hash, so a view is a link and the back button works. readHash
+  // restores the state from the hash on load; writeHash writes it back on every change,
+  // with replaceState so filtering does not fill the history. The copy-link shortcut (C)
+  // copies the same URL, hash and all.
   function readHash() {
     var hash = window.location.hash.replace(/^#/, '');
     if (!hash) return;
@@ -209,6 +258,15 @@
     });
   }
 
+  // The views, one function each, in the order render() assembles them: header (the
+  // brand and the snapshot's date, source and model version), lede (the headline, the
+  // explanation and the five stat cards), controls (search, category, chain, the
+  // pre-token/live tabs and the row count), boardTable (the ranked pre-token table, or
+  // an empty state with a clear-filters button), liveTable (the live-token protocols,
+  // set aside with their market caps), modelPanel (the formula, the explanation and the
+  // category-multiples table) and footer (the shortcuts and the model's own caveat).
+  // Sorting is by the header buttons; the direction flips when the same column is
+  // clicked again, and ties break by slug so the order is stable.
   function header() {
     return el('header', { class: 'top' },
       el('div', { class: 'brand' }, el('span', { class: 'mark' }), el('span', { class: 'brand-name', text: 'Token Radar' })),
@@ -387,6 +445,13 @@
     return entry ? entry.comparables : 0;
   }
 
+  // The detail drawer: one protocol, opened from a row (click, Enter or Space) or from
+  // a link's hash. It shows the rank, the name, the chain, the implied-value equation
+  // with the model's own inputs (TVL, category multiple, seven-day growth, age, the two
+  // multipliers and the total), the comparable count the multiple rests on, and the
+  // recomputed value beside the board's number — the two agree, or the drawer says the
+  // data would be stale. Then the six-step farm plan. It is a <dialog>, so Escape
+  // closes it, and closing it clears the selection and the hash.
   var dialog = el('dialog', { class: 'detail', id: 'detail', 'aria-labelledby': 'detail-title' });
   dialog.addEventListener('close', function () { state.selected = null; writeHash(); });
 

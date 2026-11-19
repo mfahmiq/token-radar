@@ -1,8 +1,9 @@
-/* Token Radar's dark theme. A radar console: near-black green canvas, one emerald accent,
-   mono numbers, hairline panels. The palette, two radii and two families are the whole style.
-   The footer at the bottom carries the keyboard hints (E exports the filtered board as CSV,
-   C copies the current view's link); it sits below the fold, so the board is the first thing
-   a reader sees. */
+/* The design tokens, and nothing else, live in :root: the canvas, the surfaces, the ink
+   and the muted text, one emerald accent with a dimmer for borders, a red for falls and
+   an amber for live tokens, two radii (controls and panels), two families (body and
+   mono numbers) and seven spacing steps. Every rule below refers to these, so the whole
+   theme is one change. The palette is a radar console: near-black green canvas, one
+   emerald accent, mono numbers, hairline panels. */
 :root {
   --canvas: #0a100d;
   --surface: #101915;
@@ -37,6 +38,9 @@ body {
   font: 400 15px/1.5 var(--font-body);
   text-wrap: pretty;
 }
+/* Base type: headings tight and balanced, paragraphs unmargined (the layout sets the gaps),
+   form controls inheriting the font and colour, links in the accent, and a visible focus
+   ring everywhere for keyboard readers. The skip link is off-screen until focused. */
 h1, h2, h3 { margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
 h1 { font-size: 30px; line-height: 1.15; font-weight: 650; }
 h2 { font-size: 20px; line-height: 1.2; font-weight: 650; }
@@ -52,6 +56,10 @@ a { color: var(--accent); }
 .skip:focus { left: var(--step-4); top: var(--step-4); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* The shell: one centred column, generous on desktop, tight on mobile. The top bar is
+   the brand (a radar mark drawn in gradients, no image) against the snapshot's metadata,
+   right-aligned and wrapping. The lede is the headline, one paragraph and the five stat
+   cards; the stats are five across on desktop and two across on a narrow screen. */
 .shell { max-width: 1320px; margin: 0 auto; padding: var(--step-5) var(--step-6) var(--step-7); }
 .top {
   display: flex; align-items: flex-start; justify-content: space-between; gap: var(--step-5);
@@ -79,6 +87,9 @@ a { color: var(--accent); }
 .stat b em { font-style: normal; color: var(--accent); font-size: 15px; }
 .stat span { color: var(--muted); font-size: 12px; line-height: 1.35; }
 
+/* The controls: search, category, chain and the token-status tabs in one wrapping row,
+   with the row count pushed to the right. Fields are labelled above, 36px tall, on the
+   raised surface; the tabs are a pill group whose pressed state is the accent on dark. */
 .controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--step-3); padding: var(--step-4) 0; border-top: 1px solid var(--border); }
 .field { display: grid; gap: var(--step-1); }
 .field label { color: var(--muted); font-size: 12px; }
@@ -93,6 +104,10 @@ a { color: var(--accent); }
 .tabs button[aria-pressed="true"] { background: var(--accent); color: #06110c; font-weight: 600; }
 .count { margin-left: auto; color: var(--muted); font-size: 13px; align-self: center; }
 
+/* The table: one panel with a horizontal scroll on narrow screens, hairline row
+   dividers, muted small headers, tabular mono numbers that line up, a 120px bar for
+   the implied value's share of the leader, and a status dot (emerald for no token,
+   amber for live). A selected row gets the accent's left edge; hovering raises it. */
 .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-panel); overflow: hidden; }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -117,6 +132,9 @@ tbody tr[data-selected="true"] { background: rgba(46, 230, 168, 0.08); box-shado
 .status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .status.live::before { background: var(--amber); }
 
+/* The model panel: the formula in mono on the canvas, the explanation, and the
+   category-multiples table with its numbers right-aligned. The empty state (no row
+   matches the filter) is centred with a clear-filters button. */
 .model { margin-top: var(--step-4); padding: var(--step-5); display: grid; gap: var(--step-3); }
 .formula { font-family: var(--font-num); font-size: 13px; line-height: 1.7; color: var(--muted); overflow-wrap: anywhere; background: var(--canvas); border: 1px solid var(--border); border-radius: var(--radius-control); padding: var(--step-3) var(--step-4); }
 .formula b { color: var(--accent); font-weight: 600; }
@@ -129,6 +147,11 @@ tbody tr[data-selected="true"] { background: rgba(46, 230, 168, 0.08); box-shado
 .button { min-height: 36px; padding: 0 var(--step-4); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); }
 .button.primary { background: var(--accent); border-color: var(--accent); color: #06110c; font-weight: 600; }
 
+/* The detail drawer: a fixed panel on the right, 540px at most, scrollable, with a
+   dimmed backdrop. Its head is the rank, the name and the chain against a close button;
+   each section is divided by a hairline; the equation is a two-column mono grid with
+   the total on top of a divider; the farm steps are a numbered list with the accent's
+   markers and the cost in mono below each action. */
 .detail {
   position: fixed; top: 0; right: 0; bottom: 0; width: min(540px, 92vw); z-index: 10;
   background: var(--surface); border-left: 1px solid var(--border); padding: var(--step-5);
